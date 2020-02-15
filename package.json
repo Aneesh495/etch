@@ -1,0 +1,37 @@
+{
+  "name": "etch",
+  "version": "1.0.0",
+  "description": "A high-precision Electronic Design Automation (EDA) and Printed Circuit Board (PCB) CAD engine, multi-layer geometric autorouter, spatial design rule checker, and Gerber RS-274X manufacturing pipeline in CoffeeScript",
+  "main": "src/etch.coffee",
+  "bin": {
+    "etch": "./bin/etch"
+  },
+  "scripts": {
+    "test": "coffee tests/runner.coffee",
+    "test:verbose": "coffee tests/runner.coffee --verbose",
+    "verify": "python3 verify_no_em_dashes.py",
+    "build": "coffee -c -o dist src",
+    "demo": "coffee bin/etch demo",
+    "bench": "coffee scripts/benchmark.coffee"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aneesh495/etch.git"
+  },
+  "keywords": [
+    "electronic-design-automation",
+    "printed-circuit-boards",
+    "autorouter",
+    "computational-geometry",
+    "gerber-rs274x"
+  ],
+  "author": "Aneesh Krishna Parthasarathy <aneeshkrishnaparthasarathy@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Aneesh495/etch/issues"
+  },
+  "homepage": "https://github.com/Aneesh495/etch#readme",
+  "dependencies": {
+    "coffeescript": "^2.7.1"
+  }
+}

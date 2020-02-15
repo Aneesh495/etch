@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs and distribution
+dist/
+build/
+*.pyc
+__pycache__/
+
+# Native compilation artifacts
+*.o
+*.a
+*.so
+*.dylib
+
+# Editor artifacts
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output test artifacts
+test_output/
+fab_output/
