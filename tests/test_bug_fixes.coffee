@@ -8,6 +8,10 @@
 assert = require 'assert'
 Polygon = require '../src/core/polygon'
 { Point } = require '../src/core/geometry'
+Board = require '../src/model/board'
+Component = require '../src/model/component'
+{ Pad } = require '../src/model/pad'
+Units = require '../src/core/units'
 
 describe = (name, fn) ->
   console.log "  Suite: #{name}"
@@ -36,7 +40,6 @@ describe 'Regression Bug Fixes', ->
     ])
     assert.strictEqual poly.vertexCount(), 5
     poly.cleanCollinear()
-    # Exactly the redundant collinear point (50, 0) is pruned; corners must remain
     assert.strictEqual poly.vertexCount(), 4
     pts = poly.vertices
     assert.strictEqual pts[0].x, 0
@@ -47,5 +50,22 @@ describe 'Regression Bug Fixes', ->
     assert.strictEqual pts[2].y, 100
     assert.strictEqual pts[3].x, 0
     assert.strictEqual pts[3].y, 100
+
+  # Bug 002: In CoffeeScript, iterating over ES6 Map.values() with `for ... in`
+  # compiles to array length indexing (i < values.length) which terminates
+  # immediately because MapIterator has no length property.
+  # Resolution: Used CoffeeScript 2 `for ... from` to consume ES6 iterables.
+  it 'Bug 002: correctly retrieves all pads across components from Map values using ES6 iterator', ->
+    board = new Board({ name: 'map_iter_test' })
+    c1 = new Component({ refDes: 'U1' })
+    c1.addPad(new Pad({ number: '1' }))
+    c1.addPad(new Pad({ number: '2' }))
+    c2 = new Component({ refDes: 'U2' })
+    c2.addPad(new Pad({ number: '1' }))
+    board.addComponent(c1)
+    board.addComponent(c2)
+
+    pads = board.allPads()
+    assert.strictEqual pads.length, 3
 
 console.log 'All Bug Fix regression tests passed.'
