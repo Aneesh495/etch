@@ -11,6 +11,8 @@ Polygon = require '../src/core/polygon'
 Board = require '../src/model/board'
 Component = require '../src/model/component'
 { Pad } = require '../src/model/pad'
+{ Trace } = require '../src/model/trace'
+ClearanceChecker = require '../src/drc/clearance'
 Units = require '../src/core/units'
 
 describe = (name, fn) ->
@@ -67,5 +69,28 @@ describe 'Regression Bug Fixes', ->
 
     pads = board.allPads()
     assert.strictEqual pads.length, 3
+
+  # Bug 003: In ClearanceChecker, fast-rejection bounding box margin only expanded
+  # by minClearance, omitting track half-widths. This caused parallel tracks with
+  # encroaching edges to be skipped prematurely.
+  # Resolution: Included half-widths of both tracks in bounding box expansion margin.
+  it 'Bug 003: flags clearance violations when centerlines are beyond clearance but copper edges encroach', ->
+    b = new Board({
+      width: Units.mm(50)
+      height: Units.mm(50)
+      rules: { minClearanceNm: Units.mm(0.2) }
+    })
+    t1 = new Trace({ netId: 'NET_1', layerId: 'F.Cu' })
+    t1.addSegment(new Point(Units.mm(10), Units.mm(10)), new Point(Units.mm(20), Units.mm(10)), Units.mm(0.2))
+
+    t2 = new Trace({ netId: 'NET_2', layerId: 'F.Cu' })
+    # Centerline distance = 0.3 mm (> 0.2 mm minClearance, but edge distance = 0.1 mm < 0.2 mm!)
+    t2.addSegment(new Point(Units.mm(10), Units.mm(10.3)), new Point(Units.mm(20), Units.mm(10.3)), Units.mm(0.2))
+
+    b.addTrace(t1)
+    b.addTrace(t2)
+
+    violations = ClearanceChecker.check(b)
+    assert.strictEqual violations.length, 1
 
 console.log 'All Bug Fix regression tests passed.'
