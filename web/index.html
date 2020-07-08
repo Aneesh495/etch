@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Etch EDA - Interactive CAD Board Viewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header Bar -->
+    <header id="header">
+      <div class="logo">
+        <span class="logo-accent">ETCH</span> <span class="logo-sub">EDA</span>
+      </div>
+      <div id="board-title">Board: Loading...</div>
+      <div class="header-tools">
+        <button id="btn-reset-view" class="tool-btn">Reset View</button>
+        <button id="btn-measure" class="tool-btn">Caliper Measure</button>
+        <button id="btn-run-drc" class="tool-btn btn-primary">Run DRC</button>
+        <a id="btn-download-svg" class="tool-btn" href="/api/svg" download="board.svg">Export SVG</a>
+      </div>
+    </header>
+
+    <div id="workspace">
+      <!-- Left Sidebar: Controls & Inspector -->
+      <aside id="sidebar">
+        <!-- Section: Layer Controls -->
+        <div class="panel">
+          <div class="panel-header">Layer Stackup</div>
+          <div id="layers-list" class="panel-body">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Section: Nets & Highlighting -->
+        <div class="panel">
+          <div class="panel-header">Netlist Inspector</div>
+          <div class="search-box">
+            <input type="text" id="net-search" placeholder="Filter nets...">
+          </div>
+          <div id="nets-list" class="panel-body list-body">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Section: DRC Diagnostics -->
+        <div class="panel">
+          <div class="panel-header">Design Rule Check (DRC)</div>
+          <div id="drc-summary" class="panel-body">
+            <div id="drc-badge" class="badge">DRC Not Run</div>
+            <div id="drc-list"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center CAD Canvas Viewport -->
+      <main id="viewport-container">
+        <canvas id="cad-canvas"></canvas>
+        <div id="status-bar">
+          <span id="coord-display">X: 0.00 mm | Y: 0.00 mm (X: 0 mil | Y: 0 mil)</span>
+          <span id="zoom-display">Zoom: 100%</span>
+          <span id="hover-display">No object selected</span>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
