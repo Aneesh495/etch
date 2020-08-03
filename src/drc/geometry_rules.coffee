@@ -6,6 +6,7 @@
 ###
 
 Units = require '../core/units'
+{ Point } = require '../core/geometry'
 
 class GeometryRulesChecker
   @check: (board) ->

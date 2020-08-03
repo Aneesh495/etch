@@ -13,6 +13,7 @@ Component = require '../src/model/component'
 { Pad } = require '../src/model/pad'
 { Trace } = require '../src/model/trace'
 ClearanceChecker = require '../src/drc/clearance'
+GeometryRulesChecker = require '../src/drc/geometry_rules'
 Units = require '../src/core/units'
 
 describe = (name, fn) ->
@@ -84,7 +85,6 @@ describe 'Regression Bug Fixes', ->
     t1.addSegment(new Point(Units.mm(10), Units.mm(10)), new Point(Units.mm(20), Units.mm(10)), Units.mm(0.2))
 
     t2 = new Trace({ netId: 'NET_2', layerId: 'F.Cu' })
-    # Centerline distance = 0.3 mm (> 0.2 mm minClearance, but edge distance = 0.1 mm < 0.2 mm!)
     t2.addSegment(new Point(Units.mm(10), Units.mm(10.3)), new Point(Units.mm(20), Units.mm(10.3)), Units.mm(0.2))
 
     b.addTrace(t1)
@@ -92,5 +92,16 @@ describe 'Regression Bug Fixes', ->
 
     violations = ClearanceChecker.check(b)
     assert.strictEqual violations.length, 1
+
+  # Bug 004: In GeometryRulesChecker, Point was referenced in mounting hole iteration
+  # without being imported, leading to a ReferenceError during DRC check.
+  # Resolution: Added { Point } to imports in geometry_rules.coffee.
+  it 'Bug 004: checks mounting hole drill clearances without ReferenceError', ->
+    b = new Board({ width: Units.mm(40), height: Units.mm(40) })
+    b.addMountingHole(Units.mm(5), Units.mm(5), Units.mm(3.2))
+    b.addMountingHole(Units.mm(35), Units.mm(35), Units.mm(3.2))
+    violations = GeometryRulesChecker.check(b)
+    # Holes are 42 mm apart (far beyond 0.5 mm clearance), should have 0 violations
+    assert.strictEqual violations.length, 0
 
 console.log 'All Bug Fix regression tests passed.'

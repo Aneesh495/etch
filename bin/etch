@@ -1,0 +1,205 @@
+#!/usr/bin/env node
+/**
+ * Etch EDA: Command-Line Interface (CLI) Runner
+ *
+ * Professional command-line interface for board synthesis, multi-layer
+ * autorouting, DRC verification, Gerber generation, and Web CAD server.
+ */
+
+require('coffeescript/register');
+const fs = require('fs');
+const path = require('path');
+const Etch = require('../src/etch');
+
+function printUsage() {
+  console.log(`
+Etch EDA - High-Precision Electronic Design Automation Engine
+
+USAGE:
+  etch <command> [options]
+
+COMMANDS:
+  demo                      Generate and autoroute 4-layer reference board demo
+  preview <file.coffee>     Render terminal ASCII-art board inspector
+  route   <file.coffee>     Execute multi-layer A* maze autorouter
+  drc     <file.coffee>     Run full geometric and electrical Design Rule Check
+  gerber  <file.coffee>     Generate RS-274X Gerbers and Excellon drill files
+  export  <file.coffee>     Export multi-format deliverables (SVG, BOM, CPL, IPC)
+  serve   <file.coffee>     Launch embedded interactive Web CAD GUI server
+  stats   <file.coffee>     Print board complexity metrics and layer summary
+  help                      Show this help message
+
+OPTIONS:
+  -o, --output <dir>        Output directory for manufacturing files (default: fab_output)
+  -p, --port <number>       HTTP port for Web CAD visualizer (default: 8080)
+  --format <fmt>            Export format: svg, bom, cpl, ipc, all (default: all)
+`);
+}
+
+function loadBoardFile(filePath) {
+  const absPath = path.resolve(process.cwd(), filePath);
+  if (!fs.existsSync(absPath)) {
+    console.error(`Error: File not found: ${filePath}`);
+    process.exit(1);
+  }
+  const result = require(absPath);
+  if (result && typeof result.statistics === 'function') {
+    return result;
+  } else if (typeof result === 'function') {
+    return result();
+  } else {
+    console.error(`Error: ${filePath} did not export an Etch Board instance.`);
+    process.exit(1);
+  }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const command = args[0] || 'help';
+
+  switch (command) {
+    case 'demo': {
+      console.log('Generating 4-layer STM32 IoT Sensor Hub reference board...');
+      const demoBoard = createDemoBoard();
+      console.log(`Board "${demoBoard.name}" generated with ${demoBoard.allComponents().length} components.`);
+
+      console.log('\nRunning 3D Multi-Layer A* Autorouter...');
+      const grid = new Etch.RoutingGrid(demoBoard, { resolutionNm: Etch.Units.mm(0.25) });
+      const rrr = new Etch.RipUpRerouter(grid, demoBoard);
+      const routeRes = rrr.routeBoard();
+      console.log(`Routed ${routeRes.routedCount} of ${routeRes.totalNets} nets.`);
+
+      console.log('\nExecuting Design Rule Check (DRC)...');
+      const drc = Etch.DesignRuleChecker.run(demoBoard);
+      console.log(drc.formatReport());
+
+      console.log('\nExporting Manufacturing Archive (RS-274X, Excellon, BOM, CPL)...');
+      const pack = Etch.FabPackager.exportAll(demoBoard, 'fab_output');
+      console.log(`Generated ${pack.fileCount} manufacturing files in ${pack.outputDir}/`);
+
+      console.log('\nRendering Terminal Preview:');
+      console.log(Etch.TerminalPreview.render(demoBoard, 70, 22));
+      console.log('Demo completed successfully.');
+      break;
+    }
+
+    case 'preview': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch preview <file.coffee>');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      console.log(Etch.TerminalPreview.render(board, 70, 24));
+      break;
+    }
+
+    case 'route': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch route <file.coffee>');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      console.log(`Autorouting ${board.name}...`);
+      const grid = new Etch.RoutingGrid(board, { resolutionNm: Etch.Units.mm(0.25) });
+      const rrr = new Etch.RipUpRerouter(grid, board);
+      const res = rrr.routeBoard();
+      console.log(`Routed ${res.routedCount} of ${res.totalNets} nets.`);
+      break;
+    }
+
+    case 'drc': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch drc <file.coffee>');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      const res = Etch.DesignRuleChecker.run(board);
+      console.log(res.formatReport());
+      process.exit(res.passed ? 0 : 1);
+      break;
+    }
+
+    case 'gerber': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch gerber <file.coffee> [-o out_dir]');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      const outDir = getArgValue(args, '-o', '--output') || 'fab_output';
+      const pack = Etch.FabPackager.exportAll(board, outDir);
+      console.log(`Gerber and Drill files generated in ${pack.outputDir}/ (${pack.fileCount} files)`);
+      break;
+    }
+
+    case 'serve': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch serve <file.coffee> [--port 8080]');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      const port = parseInt(getArgValue(args, '-p', '--port') || '8080', 10);
+      const server = new Etch.WebServer(board, port);
+      server.start();
+      break;
+    }
+
+    case 'stats': {
+      const file = args[1];
+      if (!file) {
+        console.error('Usage: etch stats <file.coffee>');
+        process.exit(1);
+      }
+      const board = loadBoardFile(file);
+      console.log(JSON.stringify(board.statistics(), null, 2));
+      break;
+    }
+
+    case 'help':
+    default:
+      printUsage();
+      break;
+  }
+}
+
+function getArgValue(args, shortFlag, longFlag) {
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === shortFlag || args[i] === longFlag) {
+      return args[i + 1];
+    }
+  }
+  return null;
+}
+
+function createDemoBoard() {
+  return Etch.defineBoard('stm32_demo', {
+    width: Etch.Units.mm(65),
+    height: Etch.Units.mm(45),
+    layers: 4
+  }, (b) => {
+    b.component('U1', 'QFN-32', { value: 'STM32F401', x: Etch.Units.mm(32.5), y: Etch.Units.mm(22.5) });
+    b.component('C1', '0402', { value: '100nF', x: Etch.Units.mm(26.0), y: Etch.Units.mm(22.5) });
+    b.component('C2', '0402', { value: '4.7uF', x: Etch.Units.mm(39.0), y: Etch.Units.mm(22.5) });
+    b.component('R1', '0603', { value: '10k', x: Etch.Units.mm(32.5), y: Etch.Units.mm(33.0) });
+    b.component('J1', 'USB-C', { x: Etch.Units.mm(6.0), y: Etch.Units.mm(22.5), rotation: 90 });
+    b.component('U2', 'SOT-223', { value: 'AMS1117-3.3', x: Etch.Units.mm(15.0), y: Etch.Units.mm(33.0) });
+
+    b.net('GND', ['U1.EP', 'C1.2', 'C2.2', 'J1.SH1', 'J1.SH2', 'U2.1']);
+    b.net('3V3', ['U1.1', 'C1.1', 'U2.2', 'R1.1']);
+    b.net('VBUS', ['J1.A4', 'U2.3']);
+    b.net('SWCLK', ['U1.20', 'R1.2']);
+
+    b.plane('GND', { layer: 'In1.Cu' });
+    b.plane('3V3', { layer: 'In2.Cu' });
+    b.mountingHoles(Etch.Units.mm(4.0));
+  });
+}
+
+main().catch(err => {
+  console.error('Fatal CLI Error:', err);
+  process.exit(1);
+});
